@@ -1,6 +1,6 @@
-# Network Optimizer Docker Setup
+# LLM-Powered Network Optimization Advisor - Docker Setup
 
-This repository contains the Dockerized version of the Network Optimization AI Assistant based on fine-tuned Llama-3-8B model.
+This repository contains the Dockerized version of the LLM-Powered Network Optimization Advisor based on a fine-tuned Llama-3-8B model.
 
 ## Prerequisites
 
@@ -10,50 +10,48 @@ This repository contains the Dockerized version of the Network Optimization AI A
 
 ## Setup
 
-1. Clone this repository:
-```bash
-git clone https://github.com/meddhiabetis/network-optimizer-docker.git
-cd network-optimizer-docker
-```
+1. **Clone this repository:**
+   ```bash
+   git clone https://github.com/meddhiabetis/LLM-Powered-Network-Optimization-Advisor.git
+   cd LLM-Powered-Network-Optimization-Advisor
+   ```
 
-2. Place your `network_optimizer.zip` file in the `model/` directory.
+2. **Place your model files** inside the `app/network_optimizer/` directory.  
+   > ⚠️ **Note:** Do not commit large model files to the repository! They are ignored by `.gitignore`.
 
-3. Build and run the Docker container:
-```bash
-docker-compose up --build
-```
+3. **Build and run the Docker container:**
+   ```bash
+   docker-compose up --build
+   ```
 
 ## API Usage
 
 The API will be available at `http://localhost:8000`
 
-### Endpoints:
+### Endpoints
 
 1. **POST /optimize**
-   - Endpoint for network optimization
+   - Endpoint for network optimization.
    - Example request:
-   ```bash
-   curl -X POST "http://localhost:8000/optimize" \
-        -H "Content-Type: application/json" \
-        -d '{"metrics": {"metric1": "value1", "metric2": "value2"}}'
-   ```
+     ```bash
+     curl -X POST "http://localhost:8000/optimize" \
+          -H "Content-Type: application/json" \
+          -d '{"metrics": {"metric1": "value1", "metric2": "value2"}}'
+     ```
 
 2. **GET /health**
-   - Health check endpoint
-   - Returns status of the service
+   - Health check endpoint.
+   - Returns the status of the service.
 
 ## Environment Variables
 
-- `MODEL_PATH`: Path to the model files inside container
-- `CUDA_VISIBLE_DEVICES`: GPU device ID to use
+- `MODEL_PATH`: Path to the model files inside the container.
+- `CUDA_VISIBLE_DEVICES`: GPU device ID to use.
 
 ## Monitoring
 
-The API includes basic health checking at the `/health` endpoint. For production deployment, consider adding:
+The API includes a basic health check at the `/health` endpoint.  
+For production deployment, consider adding:
 - Prometheus metrics
 - Grafana dashboards
 - Log aggregation
-
-## License
-
-[Your License Here]
