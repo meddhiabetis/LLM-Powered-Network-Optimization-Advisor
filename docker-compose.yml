@@ -1,17 +1,16 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  network-optimizer:
-    build: .
+  api:
+    build:
+      context: .
+      args:
+        BUILD_PROFILE: dev
+    environment:
+      - MODEL_PROFILE=dev
+      - ADAPTER_PATH=
+      - MODEL_CACHE=/app/hf_models/cache
     ports:
       - "8000:8000"
-    environment:
-      - CUDA_VISIBLE_DEVICES=0
-      - MODEL_PATH=/app/model/network_optimizer
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # Uncomment to enable GPU in Docker Desktop (Compose v2) if available:
+    # gpus: all

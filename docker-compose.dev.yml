@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  api:
+    environment:
+      - MODEL_PROFILE=dev
+      - ADAPTER_PATH=
+      - MODEL_CACHE=/app/hf_models/cache
+    # Optional GPU on Docker Desktop:
+    # gpus: all

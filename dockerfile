@@ -1,20 +1,41 @@
 # syntax=docker/dockerfile:1.4
+
+# Base image (Python 3.11 compatible with CUDA wheels)
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY requirements.txt .
+# System deps (git for certain HF repos)
+RUN apt-get update && apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
 
-# Use pip cache for faster builds
-RUN --mount=type=cache,target=/root/.cache/pip pip install --default-timeout=1000 -r requirements.txt
+# Requirements (dev and prod variants)
+COPY requirements-dev.txt requirements-dev.txt
+COPY requirements-prod.txt requirements-prod.txt
 
+# Build arg chooses which requirements to install (dev by default)
+ARG BUILD_PROFILE=dev
+ENV BUILD_PROFILE=${BUILD_PROFILE}
+
+# Install dependencies with basic caching
+RUN --mount=type=cache,target=/root/.cache/pip \
+    if [ "$BUILD_PROFILE" = "prod" ]; then \
+        pip install --upgrade pip && pip install -r requirements-prod.txt ; \
+    else \
+        pip install --upgrade pip && pip install -r requirements-dev.txt ; \
+    fi
+
+# Copy project files
 COPY . .
 
-# Pre-download HuggingFace model to cache
-RUN --mount=type=cache,target=/root/.cache/huggingface python -c "from transformers import AutoModelForCausalLM, AutoTokenizer; AutoModelForCausalLM.from_pretrained('unsloth/llama-3-8b-bnb-4bit'); AutoTokenizer.from_pretrained('unsloth/llama-3-8b-bnb-4bit')"
+# Default runtime env
+ENV MODEL_PROFILE=dev
+ENV MODEL_CACHE=/app/hf_models/cache
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start API
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

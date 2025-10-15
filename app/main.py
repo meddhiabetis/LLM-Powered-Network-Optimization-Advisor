@@ -1,56 +1,96 @@
-import os
-from fastapi import FastAPI
-from pydantic import BaseModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+"""
+FastAPI application entrypoint.
+
+Endpoints:
+- GET  /health   -> service and model status
+- POST /predict  -> generate text using instruction + input
+"""
+
+import logging
+
 import torch
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-MODEL_BASE = "unsloth/llama-3-8b-bnb-4bit"
-ADAPTER_PATH = "network_optimizer"
-MODEL_CACHE = "./hf_models/llama-3-8b-bnb-4bit"
+from .config import get_settings
+from .model_loader import load_model
 
-def ensure_base_model():
-    # Download base model if not present in cache
-    if not os.path.exists(MODEL_CACHE):
-        os.makedirs(MODEL_CACHE, exist_ok=True)
-    # Try to load, will download if not in cache
-    _ = AutoModelForCausalLM.from_pretrained(MODEL_BASE, cache_dir=MODEL_CACHE)
-    _ = AutoTokenizer.from_pretrained(MODEL_BASE, cache_dir=MODEL_CACHE)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("network-optimizer")
 
-ensure_base_model()
+# Load settings and model bundle at startup
+settings = get_settings()
+bundle = load_model()
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_CACHE)
-model = AutoModelForCausalLM.from_pretrained(MODEL_CACHE, torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32)
-model = PeftModel.from_pretrained(model, ADAPTER_PATH)
-model.eval()
+app = FastAPI(
+    title="LLM-Powered Network Optimization Advisor",
+    description="Dual-profile (dev/prod) FastAPI service for network optimization suggestions using LLMs + optional LoRA.",
+    version="1.0.0",
+)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
 
-app = FastAPI()
-
-class Query(BaseModel):
+class PredictRequest(BaseModel):
     instruction: str
     input: str
 
-alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+class PredictResponse(BaseModel):
+    prediction: str
+
+
+PROMPT_TEMPLATE = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
-{}
+{instruction}
 
 ### Input:
-{}
+{inp}
 
 ### Response:
 """
 
-@app.post("/predict")
-def predict(query: Query):
-    prompt = alpaca_prompt.format(query.instruction, query.input, "")
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=200)
-    pred_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    response = pred_text.split("### Response:")[-1].strip()
-    return {"prediction": response}
+
+@app.get("/health")
+def health():
+    """
+    Lightweight liveness endpoint with model metadata.
+    """
+    return {
+        "status": "ok",
+        "profile": settings.model_profile,
+        "base_model": settings.base_model,
+        "adapter_active": bool(settings.adapter_path),
+        "quantization": settings.quantization,
+        "device": bundle.device,
+        "max_new_tokens": settings.max_new_tokens,
+    }
+
+
+@app.post("/predict", response_model=PredictResponse)
+def predict(req: PredictRequest):
+    """
+    Generate a response from the model using an instruction + input pattern.
+    """
+    try:
+        prompt = PROMPT_TEMPLATE.format(instruction=req.instruction, inp=req.input)
+        tokens = bundle.tokenizer(prompt, return_tensors="pt", truncation=True)
+        tokens = {k: v.to(bundle.device) for k, v in tokens.items()}
+
+        with torch.no_grad():
+            output = bundle.model.generate(
+                **tokens,
+                max_new_tokens=settings.max_new_tokens,
+                temperature=settings.temperature,
+                top_p=settings.top_p,
+            )
+
+        decoded = bundle.tokenizer.decode(output[0], skip_special_tokens=True)
+        if "### Response:" in decoded:
+            decoded = decoded.split("### Response:")[-1].strip()
+
+        return PredictResponse(prediction=decoded)
+
+    except Exception as e:
+        logger.exception("Prediction failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Inference error: {e}") from e

@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+transformers
+torch
+peft
+bitsandbytes
+accelerate
+pydantic
+pydantic-settings

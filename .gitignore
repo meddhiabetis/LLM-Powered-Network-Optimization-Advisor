@@ -1,6 +1,63 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
+*.pyd
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual environments
 .env
-*.zip
+.venv/
+.venv311/
+venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode settings
+.vscode/
+
+# PyCharm settings
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Model files / caches
+hf_models/
 app/network_optimizer/*
+
+# Logs and misc
+*.log
+*.zip
+
+# Git files
+.git/
+.gitignore
+
+# Notebooks
+notebook/
+
+# Test / coverage reports
+htmlcov/
+.coverage
+.tox/
+.cache/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.pyc
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
